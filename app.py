@@ -1,28 +1,69 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
-import os
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import openai
+import os
+
+# API Key خودت را وارد کن یا از متغیر محیطی بخوان
+openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 app = FastAPI()
 
-# متغیر محیطی OPENAI_API_KEY را بعداً تنظیم می‌کنیم
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# فعال کردن CORS برای همه دامنه‌ها
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
+# صفحه HTML اصلی
 @app.get("/", response_class=HTMLResponse)
-async def read_root():
-    with open("index.html", "r", encoding="utf-8") as f:
-        return f.read()
+async def get_index():
+    html_content = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>هوش فرار</title>
+    </head>
+    <body>
+        <h2>سوال خود را بپرس:</h2>
+        <input type="text" id="question" placeholder="سوال خود را بنویس">
+        <button onclick="sendQuestion()">ارسال</button>
+        <p id="answer"></p>
+        <script>
+            async function sendQuestion() {
+                const q = document.getElementById("question").value;
+                const res = await fetch("/ask", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({question: q})
+                });
+                const data = await res.json();
+                document.getElementById("answer").innerText = data.answer;
+            }
+        </script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
 
+# مسیر /ask
 @app.post("/ask")
-async def ask_question(request: Request):
+async def ask(request: Request):
     data = await request.json()
     question = data.get("question")
-    if not question:
-        return {"error": "question missing"}
 
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": question}]
-    )
-    answer = response.choices[0].message.content
-    return {"answer": answer}
+    # ارسال به OpenAI و گرفتن پاسخ
+    try:
+        response = openai.Completion.create(
+            model="text-davinci-003",
+            prompt=question,
+            max_tokens=150
+        )
+        answer = response.choices[0].text.strip()
+    except Exception as e:
+        answer = f"خطا: {e}"
+
+    return JSONResponse(content={"answer": answer})
