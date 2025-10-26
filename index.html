@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+<meta charset="UTF-8">
+<title>هوش فرار</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 30px; background: #f2f2f2; }
+#chat { max-width: 600px; margin: auto; }
+input, button { padding: 10px; font-size: 16px; }
+button { margin-left: 10px; }
+.message { margin: 10px 0; padding: 10px; border-radius: 5px; background: #fff; }
+.user { background: #cce5ff; }
+.bot { background: #d4edda; }
+</style>
+</head>
+<body>
+<div id="chat">
+<h2>هوش فرار</h2>
+<div id="messages"></div>
+<input id="question" placeholder="سؤالت را بنویس" size="50"/>
+<button onclick="sendQuestion()">ارسال</button>
+</div>
+
+<script>
+async function sendQuestion() {
+    const q = document.getElementById("question").value;
+    if(!q) return;
+    const res = await fetch("/ask", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({question: q})
+    });
+    const data = await res.json();
+    const messages = document.getElementById("messages");
+    const userMsg = document.createElement("div");
+    userMsg.className = "message user";
+    userMsg.textContent = "شما: " + q;
+    messages.appendChild(userMsg);
+    const botMsg = document.createElement("div");
+    botMsg.className = "message bot";
+    botMsg.textContent = "هوش فرار: " + data.answer;
+    messages.appendChild(botMsg);
+    document.getElementById("question").value = "";
+}
+</script>
+</body>
+</html>
