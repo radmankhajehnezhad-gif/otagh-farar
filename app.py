@@ -1,15 +1,16 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import openai
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 import os
+import openai
 
-# خواندن API Key از متغیر محیطی
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+# کلید API را از محیط دریافت می‌کنیم
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 app = FastAPI()
 
-# فعال کردن CORS برای همه دامنه‌ها
+# اجازه دسترسی از همه دامنه‌ها (برای کاربران مختلف)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,51 +19,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# صفحه HTML اصلی
-@app.get("/", response_class=HTMLResponse)
-async def get_index():
-    html_content = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>هوش فرار</title>
-    </head>
-    <body>
-        <h2>سوال خود را بپرس:</h2>
-        <input type="text" id="question" placeholder="سوال خود را بنویس">
-        <button onclick="sendQuestion()">ارسال</button>
-        <p id="answer"></p>
-        <script>
-            async function sendQuestion() {
-                const q = document.getElementById("question").value;
-                const res = await fetch("/ask", {
-                    method: "POST",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({question: q})
-                });
-                const data = await res.json();
-                document.getElementById("answer").innerText = data.answer;
-            }
-        </script>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content)
+# پوشه جاری را برای Front-end mount می‌کنیم
+app.mount("/", StaticFiles(directory=".", html=True), name="static")
 
-# مسیر /ask برای دریافت سوال و ارسال به OpenAI
+# مدل داده‌ای برای سوال کاربر
+class Query(BaseModel):
+    question: str
+
+# مسیر POST برای دریافت سوال و ارسال جواب
 @app.post("/ask")
-async def ask(request: Request):
-    data = await request.json()
-    question = data.get("question", "")
-
+async def ask(query: Query):
+    prompt = f"به فارسی جواب بده: {query.question}"
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",  # می‌توانی gpt-4 هم بزنی اگر دسترسی داری
-            messages=[{"role": "user", "content": question}],
-            max_tokens=200
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=250
         )
         answer = response.choices[0].message.content.strip()
+        return {"answer": answer}
     except Exception as e:
-        answer = f"خطا در دریافت پاسخ: {e}"
+        return {"error": str(e)}
 
-    return JSONResponse(content={"answer": answer})
+# مسیر GET پیش‌فرض (اختیاری)
+@app.get("/ping")
+async def ping():
+    return {"message": "سرور آماده است! برای دریافت جواب به /ask درخواست POST بدهید."}
