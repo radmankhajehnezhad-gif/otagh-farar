@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import openai
 import os
 
-# API Key خودت را وارد کن یا از متغیر محیطی بخوان
+# خواندن API Key از متغیر محیطی
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 app = FastAPI()
@@ -49,21 +49,20 @@ async def get_index():
     """
     return HTMLResponse(content=html_content)
 
-# مسیر /ask
+# مسیر /ask برای دریافت سوال و ارسال به OpenAI
 @app.post("/ask")
 async def ask(request: Request):
     data = await request.json()
-    question = data.get("question")
+    question = data.get("question", "")
 
-    # ارسال به OpenAI و گرفتن پاسخ
     try:
-        response = openai.Completion.create(
-            model="text-davinci-003",
-            prompt=question,
-            max_tokens=150
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",  # می‌توانی gpt-4 هم بزنی اگر دسترسی داری
+            messages=[{"role": "user", "content": question}],
+            max_tokens=200
         )
-        answer = response.choices[0].text.strip()
+        answer = response.choices[0].message.content.strip()
     except Exception as e:
-        answer = f"خطا: {e}"
+        answer = f"خطا در دریافت پاسخ: {e}"
 
     return JSONResponse(content={"answer": answer})
