@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="utf-8" />
+  <title>هوش فرار — چت فارسی</title>
+  <style>
+    body{font-family:Tahoma, sans-serif;direction:rtl;background:#f4f6f8;padding:20px}
+    #box{max-width:800px;margin:auto;background:#fff;padding:18px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.08)}
+    #chat{height:400px;overflow:auto;padding:10px;border:1px solid #eee;border-radius:8px;background:#fafafa}
+    .msg{margin:8px 0;padding:8px;border-radius:6px}
+    .user{background:#d1e7ff;text-align:right}
+    .bot{background:#e8f6e8;text-align:left}
+    input{padding:10px;width:75%;border-radius:6px;border:1px solid #ddd}
+    button{padding:10px 14px;border-radius:6px;background:#2563eb;color:#fff;border:none;margin-right:8px}
+    #pw{width:20%;padding:10px;border-radius:6px;border:1px solid #ddd}
+  </style>
+</head>
+<body>
+  <div id="box">
+    <h2>هوش فرار — چت فارسی</h2>
+    <div id="chat"></div>
+
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <input id="msg" placeholder="پیام خود را بنویسید..." />
+      <input id="pw" placeholder="رمز (اختیاری)" />
+      <button onclick="send()">ارسال</button>
+    </div>
+    <p style="margin-top:10px;color:#666">توجه: ممکن است محدودیت تعداد پرسش/هزینه وجود داشته باشد — اگر خواستی رمز بگذار.</p>
+  </div>
+
+<script>
+async function send(){
+  const txt = document.getElementById('msg').value.trim();
+  const pw = document.getElementById('pw').value || null;
+  if(!txt) return;
+  const chat = document.getElementById('chat');
+
+  const u = document.createElement('div'); u.className='msg user'; u.innerText = txt;
+  chat.appendChild(u); document.getElementById('msg').value='';
+
+  try{
+    const res = await fetch('/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({message: txt, password: pw})
+    });
+    const j = await res.json();
+    const b = document.createElement('div'); b.className='msg bot';
+    if(j.response) b.innerText = j.response;
+    else if(j.error) b.innerText = 'خطا: ' + j.error;
+    else b.innerText = 'پاسخی دریافت نشد';
+    chat.appendChild(b);
+    chat.scrollTop = chat.scrollHeight;
+  }catch(e){
+    const b = document.createElement('div'); b.className='msg bot';
+    b.innerText = 'خطا در اتصال: ' + (e.message || e);
+    chat.appendChild(b);
+  }
+}
+</script>
+</body>
+</html>
